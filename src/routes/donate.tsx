@@ -60,9 +60,12 @@ export default function DonatePage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleSubmit = async () => {
+const handleSubmit = async () => {
+    if (amount <= 0) return; // حماية إضافية
+    
     setSubmitting(true);
     try {
+      // 1. إنشاء سجل التبرع في السيرفر (Pending)
       const { data: donation } = await api.post("/donations", {
         amount,
         method,
@@ -72,16 +75,23 @@ export default function DonatePage() {
         initiativeId,
       });
 
+      // 2. إذا كانت الطريقة بطاقة (بينانس باي)
       if (method === "card") {
-        const { data: checkout } = await api.post(
-          `/donations/${donation.id}/checkout`,
-        );
-        window.location.href = checkout.checkoutUrl;
+        const { data: checkout } = await api.post(`/donations/${donation.id}/checkout`);
+        
+        if (checkout?.checkoutUrl) {
+          // بدلاً من توجيه المستخدم فوراً، يمكنك فتحها في تبويب جديد أو التوجيه
+          window.location.href = checkout.checkoutUrl;
+        } else {
+          throw new Error("لم يتم استلام رابط الدفع");
+        }
       } else {
+        // 3. في حالة الكريبتو (Manual)، اظهر شاشة النجاح فوراً
         setSuccess(true);
       }
     } catch (err) {
-      alert("حدث خطأ أثناء الاتصال ببينانس");
+      console.error(err);
+      alert("فشلت عملية تهيئة الدفع، حاول مرة أخرى.");
     } finally {
       setSubmitting(false);
     }
