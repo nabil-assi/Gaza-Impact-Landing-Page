@@ -61,29 +61,27 @@ export default function DonatePage() {
   };
 
   const handleSubmit = async () => {
-    if (!amount || amount <= 0) return;
     setSubmitting(true);
-
-    // توليد معرف فريد للطلب لربطه بالتحويل اليدوي لاحقاً
-    const transactionRef = `GAZA-${Date.now().toString().slice(-6)}`;
-
     try {
-      const response = await api.post("/donations", {
+      const { data: donation } = await api.post("/donations", {
         amount,
         method,
-        name: name || undefined,
-        contact: contact || undefined,
-        message: message || undefined,
-        initiativeId: initiativeId ?? null,
-        transactionRef, // إرسال المعرف للسيرفر
+        name,
+        contact,
+        message,
+        initiativeId,
       });
 
-      // حفظ الـ Ref في الحالة لعرضه للمستخدم
-      setSuccess(true);
-      // يمكنك هنا تخزين transactionRef في state لعرضه في شاشة النجاح
+      if (method === "card") {
+        const { data: checkout } = await api.post(
+          `/donations/${donation.id}/checkout`,
+        );
+        window.location.href = checkout.checkoutUrl;
+      } else {
+        setSuccess(true);
+      }
     } catch (err) {
-      console.error("Donation submission failed:", err);
-      alert("حدث خطأ، يرجى المحاولة لاحقاً");
+      alert("حدث خطأ أثناء الاتصال ببينانس");
     } finally {
       setSubmitting(false);
     }
@@ -227,71 +225,80 @@ export default function DonatePage() {
         {/* Form card */}
         <div className="grid gap-10 rounded-3xl border border-border bg-card p-8 shadow-sm md:p-12 lg:grid-cols-5">
           {/* ── Left: amount + payment ── */}
-         <div className="lg:col-span-3 lg:border-r lg:border-border lg:pr-12">
-  {/* Amount Input Only */}
-  <FieldLabel en="Donation Amount (USD)" ar="مبلغ التبرع بالدولار" />
-  <div className="relative mt-3">
-    <span className="absolute left-4 top-3.5 text-muted-foreground">$</span>
-    <input
-      type="number"
-      min={1}
-      value={amount}
-      onChange={(e) => setAmount(Number(e.target.value))}
-      className="w-full rounded-xl border border-border bg-background py-3 pl-8 pr-4 text-sm outline-none transition focus:border-primary"
-      placeholder="100"
-    />
-  </div>
+          <div className="lg:col-span-3 lg:border-r lg:border-border lg:pr-12">
+            {/* Amount Input Only */}
+            <FieldLabel en="Donation Amount (USD)" ar="مبلغ التبرع بالدولار" />
+            <div className="relative mt-3">
+              <span className="absolute left-4 top-3.5 text-muted-foreground">
+                $
+              </span>
+              <input
+                type="number"
+                min={1}
+                value={amount}
+                onChange={(e) => setAmount(Number(e.target.value))}
+                className="w-full rounded-xl border border-border bg-background py-3 pl-8 pr-4 text-sm outline-none transition focus:border-primary"
+                placeholder="100"
+              />
+            </div>
 
-  {/* Payment method */}
-  <div className="mt-8">
-    <FieldLabel en="Payment method" ar="طريقة الدفع" />
-    <div className="mt-3 grid gap-3 sm:grid-cols-2">
-      <PaymentOption
-        active={method === "card"}
-        onClick={() => setMethod("card")}
-        icon={<CreditCard className="h-5 w-5" />}
-        title="Binance Pay"
-        titleAr="دفع عبر بينانس"
-        hint="Instant & Secure"
-      />
-      <PaymentOption
-        active={method === "crypto"}
-        onClick={() => setMethod("crypto")}
-        icon={<Bitcoin className="h-5 w-5" />}
-        title="USDT (TRC-20)"
-        titleAr="عملة رقمية USDT"
-        hint="Manual transfer"
-      />
-    </div>
+            {/* Payment method */}
+            <div className="mt-8">
+              <FieldLabel en="Payment method" ar="طريقة الدفع" />
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <PaymentOption
+                  active={method === "card"}
+                  onClick={() => setMethod("card")}
+                  icon={<CreditCard className="h-5 w-5" />}
+                  title="Binance Pay"
+                  titleAr="دفع عبر بينانس"
+                  hint="Instant & Secure"
+                />
+                <PaymentOption
+                  active={method === "crypto"}
+                  onClick={() => setMethod("crypto")}
+                  icon={<Bitcoin className="h-5 w-5" />}
+                  title="USDT (TRC-20)"
+                  titleAr="عملة رقمية USDT"
+                  hint="Manual transfer"
+                />
+              </div>
 
-    {/* Payment details panel */}
-    <div className="mt-4">
-      {method === "crypto" ? (
-        <div className="rounded-xl border border-primary/30 bg-primary-soft/40 p-4">
-          <p className="text-xs font-semibold text-moss">USDT (TRC-20) Wallet Address:</p>
-          <div className="mt-2 flex items-center gap-2">
-            <code className="flex-1 break-all rounded bg-white/70 p-2 font-mono text-xs text-foreground">
-              {WALLET_ADDRESS}
-            </code>
-            <button
-              onClick={handleCopy}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-foreground/70 transition hover:border-primary hover:text-primary"
-            >
-              {copied ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
-            </button>
+              {/* Payment details panel */}
+              <div className="mt-4">
+                {method === "crypto" ? (
+                  <div className="rounded-xl border border-primary/30 bg-primary-soft/40 p-4">
+                    <p className="text-xs font-semibold text-moss">
+                      USDT (TRC-20) Wallet Address:
+                    </p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <code className="flex-1 break-all rounded bg-white/70 p-2 font-mono text-xs text-foreground">
+                        {WALLET_ADDRESS}
+                      </code>
+                      <button
+                        onClick={handleCopy}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-foreground/70 transition hover:border-primary hover:text-primary"
+                      >
+                        {copied ? (
+                          <Check className="h-3.5 w-3.5 text-primary" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-xs text-blue-800">
+                    You'll be redirected to Binance Pay to complete your secure
+                    payment.
+                    <span className="font-arabic mt-1 block" dir="rtl">
+                      ستُحوَّل إلى صفحة بينانس لإتمام الدفع الآمن.
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-xs text-blue-800">
-          You'll be redirected to Binance Pay to complete your secure payment.
-          <span className="font-arabic mt-1 block" dir="rtl">
-            ستُحوَّل إلى صفحة بينانس لإتمام الدفع الآمن.
-          </span>
-        </div>
-      )}
-    </div>
-  </div>
-</div>
 
           {/* ── Right: personal info + submit ── */}
           <div className="lg:col-span-2">
