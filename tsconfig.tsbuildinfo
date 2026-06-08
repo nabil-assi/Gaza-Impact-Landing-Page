@@ -1,0 +1,1 @@
+{"root":["./src/App.tsx","./src/main.tsx","./src/lib/utils.ts","./src/lib/api/api.ts","./src/routes/donate.tsx","./src/routes/index.tsx","./src/routes/initiatives.$id.tsx","./src/routes/not-found.tsx"],"version":"5.9.3"}
